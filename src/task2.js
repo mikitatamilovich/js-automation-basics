@@ -9,13 +9,27 @@ import {
   getTotal,
 } from "./utils/inventory.js";
 
-const data = [
-  { id: 1, label: "Phone", rawPrice: "1 500 $", amount: 2, status: "in_stock" },
+const RAW_PRICE_SAMPLE = "1 500 $";
+const PARSED_PRICE_SAMPLE = 1500;
+
+const INVENTORY_ITEM_ID = 1;
+const INVENTORY_ITEM_LABEL = "Phone";
+const INVENTORY_ITEM_AMOUNT = 2;
+const INVENTORY_ITEM_STATUS = "in_stock";
+
+const INVENTORY_DATA = [
+  {
+    id: INVENTORY_ITEM_ID,
+    label: INVENTORY_ITEM_LABEL,
+    rawPrice: RAW_PRICE_SAMPLE,
+    amount: INVENTORY_ITEM_AMOUNT,
+    status: INVENTORY_ITEM_STATUS,
+  },
 ];
 
 assert.strictEqual(
-  parseRawPrice("1 500 $"),
-  1500,
+  parseRawPrice(RAW_PRICE_SAMPLE),
+  PARSED_PRICE_SAMPLE,
   "Clean: failed to strip spaces and currency sign correctly",
 );
 assert.strictEqual(parseRawPrice(null), 0, "Clean: did not guard against null");
@@ -26,17 +40,17 @@ assert.strictEqual(
 );
 
 assert.deepStrictEqual(
-  getAvailableFor(data),
-  getAvailable(data),
+  getAvailableFor(INVENTORY_DATA),
+  getAvailable(INVENTORY_DATA),
   "Filter: for-loop and array-method versions return different results",
 );
 assert.deepStrictEqual(
-  getLabelsUpperFor(data),
-  getLabelsUpper(data),
+  getLabelsUpperFor(INVENTORY_DATA),
+  getLabelsUpper(INVENTORY_DATA),
   "Transform: for-loop and array-method versions return different results",
 );
 assert.strictEqual(
-  getTotalFor(data),
-  getTotal(data),
+  getTotalFor(INVENTORY_DATA),
+  getTotal(INVENTORY_DATA),
   "Aggregate: for-loop and array-method versions return different results",
 );
