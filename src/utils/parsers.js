@@ -7,6 +7,9 @@ export function parseRawPrice(rawPrice) {
   if (rawPrice === null || rawPrice === undefined) {
     return 0;
   }
+  if (typeof rawPrice === "number") {
+    return rawPrice;
+  }
   const digitsOnly = String(rawPrice).replace(/[^\d]/g, "");
   return digitsOnly === "" ? 0 : Number(digitsOnly);
 }
