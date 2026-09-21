@@ -1,20 +1,22 @@
-import { MAX_RETRIES } from "../config/constants.js";
+import {
+  ABORT_ERROR_NAME,
+  MAX_RETRIES,
+  TIMEOUT_ERROR_MESSAGE,
+} from "../config/constants.js";
+import { isRetryableError } from "./utils/http.js";
 
 /**
- * Retries an async function on failure. Rethrows the last error once
- * attempts run out, so failures are never silently swallowed.
- *
- * Smart Retry (со звёздочкой): retries only on a network error or a
- * 5xx server error; a 4xx error is non-transient and is thrown
- * immediately, without wasting retry attempts.
- *
- * @param {(...args: any[]) => Promise<any>} asyncFn - Function to protect with retries.
- * @param {number} [maxRetries=MAX_RETRIES] - Maximum number of attempts.
- * @returns {(...args: any[]) => Promise<any>} Wrapped function with the same signature.
- * @throws {Error} The last encountered error, once retries are exhausted.
+ * Retries asyncFn on network errors and 5xx. Other errors (4xx) are thrown
+ * right away. When attempts are over, the last error is thrown.
+ * @param {Function} asyncFn - async function to wrap
+ * @param {number} [maxRetries] - max number of attempts
+ * @returns {Function} wrapped function
  */
 export function withRetry(asyncFn, maxRetries = MAX_RETRIES) {
-  const debugFlag = true; // намеренная ошибка: var вместо const/let
+  if (!Number.isInteger(maxRetries) || maxRetries < 1) {
+    throw new RangeError("maxRetries must be an integer >= 1");
+  }
+
   return async function (...args) {
     let lastError;
 
@@ -23,9 +25,7 @@ export function withRetry(asyncFn, maxRetries = MAX_RETRIES) {
         return await asyncFn(...args);
       } catch (err) {
         lastError = err;
-
-        // Со звёздочкой: 4xx is a client-side problem, retrying won't help.
-        if (err.status >= 400 && err.status < 500) {
+        if (!isRetryableError(err)) {
           throw err;
         }
       }
@@ -36,11 +36,12 @@ export function withRetry(asyncFn, maxRetries = MAX_RETRIES) {
 }
 
 /**
- * Bonus track 2. Aborts fetchFn if it does not resolve within timeoutMs.
- * @param {(...args: any[]) => Promise<any>} fetchFn - Function accepting a trailing options object with `signal`.
- * @param {number} timeoutMs - Time budget in milliseconds.
- * @returns {(...args: any[]) => Promise<any>} Wrapped function.
- * @throws {Error} "Request Timeout" if the deadline is exceeded.
+ * Aborts the request if it takes longer than timeoutMs.
+ * fetchFn gets `{ signal }` as the last argument and must pass it to fetch.
+ * @param {Function} fetchFn - function that makes the request
+ * @param {number} timeoutMs - time limit in ms
+ * @returns {Function} wrapped function
+ * @throws {Error} "Request Timeout" when time is up
  */
 export function withTimeout(fetchFn, timeoutMs) {
   return async function (...args) {
@@ -50,8 +51,8 @@ export function withTimeout(fetchFn, timeoutMs) {
     try {
       return await fetchFn(...args, { signal: controller.signal });
     } catch (err) {
-      if (err.name === "AbortError") {
-        throw new Error("Request Timeout");
+      if (err.name === ABORT_ERROR_NAME) {
+        throw new Error(TIMEOUT_ERROR_MESSAGE);
       }
       throw err;
     } finally {
@@ -61,10 +62,10 @@ export function withTimeout(fetchFn, timeoutMs) {
 }
 
 /**
- * Bonus track 3. Caches fetchFn results per argument set for ttlMs.
- * @param {(...args: any[]) => Promise<any>} fetchFn - Function to cache.
- * @param {number} ttlMs - Cache lifetime in milliseconds.
- * @returns {(...args: any[]) => Promise<any>} Wrapped function using an in-memory cache.
+ * Remembers results for the same arguments for ttlMs.
+ * @param {Function} fetchFn - function to cache
+ * @param {number} ttlMs - how long the result lives, in ms
+ * @returns {Function} wrapped function
  */
 export function withCache(fetchFn, ttlMs) {
   const cache = new Map();
@@ -73,12 +74,12 @@ export function withCache(fetchFn, ttlMs) {
     const key = JSON.stringify(args);
     const cached = cache.get(key);
 
-    if (cached && Date.now() - cached.time < ttlMs) {
+    if (cached && Date.now() - cached.savedAt < ttlMs) {
       return cached.data;
     }
 
     const data = await fetchFn(...args);
-    cache.set(key, { data, time: Date.now() });
+    cache.set(key, { data, savedAt: Date.now() });
     return data;
   };
 }
