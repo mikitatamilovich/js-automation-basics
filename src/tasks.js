@@ -13,6 +13,9 @@ import { isRetryableError } from "./utils/http.js";
  * @returns {Function} wrapped function
  */
 export function withRetry(asyncFn, maxRetries = MAX_RETRIES) {
+  if (typeof asyncFn !== "function") {
+    throw new TypeError("withRetry: asyncFn must be a function");
+  }
   if (!Number.isInteger(maxRetries) || maxRetries < 1) {
     throw new RangeError("maxRetries must be an integer >= 1");
   }
@@ -44,6 +47,16 @@ export function withRetry(asyncFn, maxRetries = MAX_RETRIES) {
  * @throws {Error} "Request Timeout" when time is up
  */
 export function withTimeout(fetchFn, timeoutMs) {
+  if (typeof fetchFn !== "function") {
+    throw new TypeError("withTimeout: fetchFn must be a function");
+  }
+  if (
+    typeof timeoutMs !== "number" ||
+    !Number.isFinite(timeoutMs) ||
+    timeoutMs <= 0
+  ) {
+    throw new TypeError("withTimeout: timeoutMs must be a positive number");
+  }
   return async function (...args) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -68,8 +81,13 @@ export function withTimeout(fetchFn, timeoutMs) {
  * @returns {Function} wrapped function
  */
 export function withCache(fetchFn, ttlMs) {
+  if (typeof fetchFn !== "function") {
+    throw new TypeError("withCache: fetchFn must be a function");
+  }
+  if (typeof ttlMs !== "number" || !Number.isFinite(ttlMs) || ttlMs <= 0) {
+    throw new TypeError("withCache: ttlMs must be a positive number");
+  }
   const cache = new Map();
-
   return async function (...args) {
     const key = JSON.stringify(args);
     const cached = cache.get(key);

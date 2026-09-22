@@ -30,7 +30,9 @@ export class ReqResClient {
    * @throws {Error} with a `status` field if response is not ok
    */
   async _request(endpoint, options = {}) {
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+    const base = this.baseUrl.endsWith("/") ? this.baseUrl : `${this.baseUrl}/`;
+    const url = new URL(endpoint.replace(/^\//, ""), base);
+    const response = await fetch(url, {
       ...options,
       headers: { [API_KEY_HEADER]: this.apiKey, ...options.headers },
     });
@@ -48,8 +50,17 @@ export class ReqResClient {
    * @param {number|string} id - user id
    * @param {object} [options] - extra fetch options (signal for withTimeout)
    * @returns {Promise<object>} user
+   * @throws {TypeError} if id is not a positive number or non-empty string
    */
   async getUser(id, options = {}) {
+    const isValidId =
+      (typeof id === "number" && Number.isFinite(id) && id > 0) ||
+      (typeof id === "string" && id.trim() !== "");
+    if (!isValidId) {
+      throw new TypeError(
+        "getUser: id must be a positive number or a non-empty string",
+      );
+    }
     return this._request(`${USERS_ENDPOINT}/${id}`, options);
   }
 
@@ -57,8 +68,16 @@ export class ReqResClient {
    * Creates a user.
    * @param {object} userData - request body
    * @returns {Promise<object>} created user
+   * @throws {TypeError} if userData is not a plain object
    */
   async createUser(userData) {
+    const isPlainObject =
+      userData !== null &&
+      typeof userData === "object" &&
+      !Array.isArray(userData);
+    if (!isPlainObject) {
+      throw new TypeError("createUser: userData must be an object");
+    }
     return this._request(USERS_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
