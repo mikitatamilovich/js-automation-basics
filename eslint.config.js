@@ -9,10 +9,16 @@ export default [
       globals: {
         console: "readonly",
         process: "readonly",
+        fetch: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
+        AbortController: "readonly",
+        Response: "readonly",
       },
     },
     rules: {
-      "no-unused-vars": "warn",
+      "no-console": "warn",
+      "no-unused-vars": "error",
       "no-var": "error",
       "prefer-const": "error",
       eqeqeq: "warn",
